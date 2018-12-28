@@ -6,6 +6,8 @@ var sql = new SQLite('./db.sqlite');
 
 var client = new Discord.Client();
 
+var createQueue = []
+
 client.on('ready', () => {
 	console.log('Logged in as ' + client.user.username + '!');
 	
@@ -29,7 +31,7 @@ client.on('message', message => {
 	if (message.author.bot)
 		return;
 	
-	if (message.content.toLowerCase() == '!register') {
+	if (message.content.toLowerCase() == '!register' && !waitingForInput(message.author.id)) {
 		if (!userExists(message.author.id)) {
 			message.channel.send('<@'+ message.author.id + '> Please provide your timezone (Eastern, Central, Mountain, Pacific).');
 			
@@ -51,10 +53,10 @@ client.on('message', message => {
 			message.channel.send('<@'+ message.author.id + '> You\'re already in the database!');
 			return;
 		}
-	} else if (!userExists(message.author.id)) {
+	} else if (!userExists(message.author.id) && !waitingForInput(message.author.id)) {
 		message.channel.send('<@'+ message.author.id + '> You don\'t exist in the database yet. Please use \'!Register\' to add yourself to the database!');
 		return;
-	} else if (message.content.substring(0, 1) == '!') {
+	} else if (message.content.substring(0, 1) == '!' && !waitingForInput(message.author.id)) {
 		var cmd = message.content.substring(1).toLowerCase();
 		
 		switch(cmd) {
@@ -81,16 +83,27 @@ client.on('message', message => {
 			break;
 		}
 		
-		var collector = new Discord.MessageCollector(message.channel, m => m.author.id === message.author.id, { time: 10000 });
-		console.log(collector.listener.toString());
+		var collector = new Discord.MessageCollector(message.channel, m => m.author.id === message.author.id, {});
 		
-		//collector._events.collect.toString()
+		createQueue.push(message.author.id);
 		
 		collector.on('collect', message => {
 			if (message.content == 'ping') {
 				message.channel.send('pong!');
+				collector.stop('This is a reason');
 			}
 		});
+		
+		collector.on('end', (collection, reason) => {
+			for (var x = 0; x < createQueue.length; x++) {
+				if (createQueue[x] === message.author.id) {
+					createQueue.splice(x, 1);
+				}
+			}
+		});
+	} else if (waitingForInput(message.author.id)) {
+		message.channel.send('<@'+ message.author.id + '> I am currently waiting for you to complete the current setup!');
+		return;
 	}
 });
 
@@ -104,5 +117,11 @@ function userExists(id) {
 }
 
 function waitingForInput(id) {
+	for (var x = 0; x < createQueue.length; x++) {
+		if (createQueue[x] === id) {
+			return true;
+		}
+	}
 	
+	return false;
 }
