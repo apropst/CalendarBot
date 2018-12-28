@@ -82,7 +82,9 @@ client.on('message', message => {
 		}
 		
 		var collector = new Discord.MessageCollector(message.channel, m => m.author.id === message.author.id, { time: 10000 });
-		console.log(collector._events.collect.toString());
+		console.log(collector.listener.toString());
+		
+		//collector._events.collect.toString()
 		
 		collector.on('collect', message => {
 			if (message.content == 'ping') {
