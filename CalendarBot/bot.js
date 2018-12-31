@@ -16,15 +16,21 @@ client.on('ready', () => {
 	if (!table['COUNT(*)']) {
 		sql.prepare("CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, starttime INTEGER, endtime INTEGER);").run();
 		sql.prepare("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, userid TEXT, timezone TEXT);").run();
+		sql.prepare("CREATE TABLE eventregistration (id INTEGER PRIMARY KEY AUTOINCREMENT, userid TEXT, event TEXT);").run();
 		sql.prepare("CREATE UNIQUE INDEX idx_events_id ON events (id);").run();
+		sql.prepare("CREATE UNIQUE INDEX idx_users_id ON users (id);").run();
+		sql.prepare("CREATE UNIQUE INDEX idx_eventregistration_id ON eventregistration (id);").run();
 		sql.pragma("synchronous = 1");
 		sql.pragma("journal_mode = wal");
 	}
 	
 	client.getEvent = sql.prepare("SELECT * FROM events WHERE name = ?");
+	client.getEvents = sql.prepare("SELECT * FROM events");
 	client.addEvent = sql.prepare("INSERT OR REPLACE INTO events (name, starttime, endtime) VALUES (@name, @starttime, @endtime);");
 	client.getUser = sql.prepare("SELECT * FROM users WHERE userid = ?");
 	client.addUser = sql.prepare("INSERT OR REPLACE INTO users (username, userid, timezone) VALUES (@username, @userid, @timezone);");
+	client.getRegistration = sql.prepare("SELECT * FROM eventregistration WHERE userid = ?");
+	client.addRegistration = sql.prepare("INSERT OR REPLACE INTO eventregistration (userid, event) VALUES (@userid, @event);");
 });
 
 client.on('message', message => {
@@ -36,7 +42,13 @@ client.on('message', message => {
 			if (!userExists(message.author.id)) {
 				var collector = new Discord.MessageCollector(message.channel, m => m.author.id === message.author.id);
 				
-				messageQueue.push(message.author.id);
+				var queueObj = {
+					userid: message.author.id,
+					type: 'register',
+					step: 1
+				}
+				
+				messageQueue.push(queueObj);
 				
 				message.channel.send('<@'+ message.author.id + '> Please provide your timezone (Eastern, Central, Mountain, Pacific).');
 			
@@ -58,7 +70,7 @@ client.on('message', message => {
 				});
 				
 				collector.on('end', (collection, reason) => {
-					messageQueue = arrRemove(messageQueue, message.author.id);
+					messageQueue = queueRemove(messageQueue, message.author.id);
 				});
 			} else {
 				message.channel.send('<@'+ message.author.id + '> You\'re already in the database!');
@@ -76,7 +88,13 @@ client.on('message', message => {
 					
 					var collector = new Discord.MessageCollector(message.channel, m => m.author.id === message.author.id);
 			
-					messageQueue.push(message.author.id);
+					var queueObj = {
+						userid: message.author.id,
+						type: cmd,
+						step: 1
+					}
+					
+					messageQueue.push(queueObj);
 					
 					collector.on('collect', message => {
 						if (message.content == 'ping') {
@@ -86,26 +104,101 @@ client.on('message', message => {
 					});
 					
 					collector.on('end', (collection, reason) => {
-						messageQueue = arrRemove(messageQueue, message.author.id);
+						messageQueue = queueRemove(messageQueue, message.author.id);
 					});
 					break;
 				
 				case 'addevent':
-					if (arg1 != "" && arg2 != "" && arg3 != "") {
-						var newEvent = {
-							name: arg1,
-							starttime: arg2,
-							endtime: arg3
-						}
-						client.addEvent.run(newEvent);
+					var collector = new Discord.MessageCollector(message.channel, m => m.author.id === message.author.id);
+					
+					var queueObj = {
+						userid: message.author.id,
+						type: cmd,
+						step: 1
 					}
+					
+					messageQueue.push(queueObj);
+					
+					message.channel.send('<@'+ message.author.id + '> Okay. What is the name of your event?');
+					
+					collector.on('collect', message => {
+						switch (getStep(message.author.id, 'addevent')) {
+							case 1:
+								message.channel.send('<@'+ message.author.id + '> What time will your event start?');
+								messageQueue = queueIncrement(messageQueue, message.author.id, 'addevent');
+								break;
+								
+							case 2:
+								message.channel.send('<@'+ message.author.id + '> What time will your event end?');
+								messageQueue = queueIncrement(messageQueue, message.author.id, 'addevent');
+								break;
+								
+							case 3:
+								collector.stop();
+								break;
+						}
+					});
+					
+					collector.on('end', (collection, reason) => {
+						var messages = collection.array();
+						
+						var newEvent = {
+							name: messages[0].content,
+							starttime: messages[1].content,
+							endtime: messages[2].content
+						}
+						
+						client.addEvent.run(newEvent);
+						
+						messageQueue = queueRemove(messageQueue, message.author.id);
+						
+						message.channel.send('<@'+ message.author.id + '> Event added.');
+					});
+					
 					break;
 				
 				case 'getevent':
-					if (arg1 != "") {
-						var eventdata = client.getEvent.get(arg1);
-						message.channel.send('Event ID: ' + eventdata.id + ' Event Name: ' + eventdata.name + ' Event Start Time: ' + eventdata.starttime + ' Event End Time: ' + eventdata.endtime);
+					var collector = new Discord.MessageCollector(message.channel, m => m.author.id === message.author.id);
+					
+					var queueObj = {
+						userid: message.author.id,
+						type: cmd,
+						step: 1
 					}
+					
+					messageQueue.push(queueObj);
+					
+					message.channel.send('<@'+ message.author.id + '> Enter the name of the event you want to search for.');
+					
+					collector.on('collect', message => {
+						switch (getStep(message.author.id, 'getevent')) {
+							case 1:
+								collector.stop();
+								break;
+						}
+					});
+					
+					collector.on('end', (collection, reason) => {
+						var eventResult = client.getEvent.get(collection.array()[0].content);
+						
+						messageQueue = queueRemove(messageQueue, message.author.id);
+						
+						if (typeof eventResult !== 'undefined') {
+							message.channel.send('Event ID: ' + eventResult.id + '\nEvent Name: ' + eventResult.name + '\nEvent Start Time: ' + eventResult.starttime + '\nEvent End Time: ' + eventResult.endtime);
+						} else {
+							message.channel.send('No event found.');
+						}
+					});
+					
+					break;
+					
+				case 'getevents':
+					var eventList = client.getEvents.all();
+					
+					for (var x = 0; x < eventList.length; x++) {
+						message.channel.send('Event ID: ' + eventList[x].id + '\nEvent Name: ' + eventList[x].name + '\nEvent Start Time: ' + eventList[x].starttime + '\nEvent End Time: ' + eventList[x].endtime);
+					}
+					
 					break;
 				
 				case 'whoami':
@@ -115,10 +208,10 @@ client.on('message', message => {
 				
 			}
 		}
-	} else {
+	} /*else {
 		message.channel.send('<@'+ message.author.id + '> I am currently waiting for you to complete the current setup!');
 		return;
-	}
+	}*/
 });
 
 client.login(auth.token);
@@ -132,7 +225,7 @@ function userExists(id) {
 
 function waitingForInput(id) {
 	for (var x = 0; x < messageQueue.length; x++) {
-		if (messageQueue[x] === id) {
+		if (messageQueue[x].userid === id) {
 			return true;
 		}
 	}
@@ -140,12 +233,32 @@ function waitingForInput(id) {
 	return false;
 }
 
-function arrRemove(arr, value) {
-	for (var x = 0; x < arr.length; x++) {
-		if (arr[x] === value) {
+function queueRemove(arr, value) {
+	for (var x of arr) {
+		if (x.userid === value) {
 			arr.splice(x, 1);
 		}
 	}
 	
 	return arr;
+}
+
+function queueIncrement(arr, id, type) {
+	for (var x = 0; x < arr.length; x++) {
+		if (arr[x].userid === id && arr[x].type === type) {
+			arr[x].step++;
+		}
+	}
+	
+	return arr;
+}
+
+function getStep(id, type) {
+	for (var x of messageQueue) {
+		if (x.userid === id && x.type === type) {
+			return x.step;
+		}
+	}
+	
+	return 0;
 }
