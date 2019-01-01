@@ -1,3 +1,12 @@
+/*
+To Do:
+- Add Event deleting
+- Add message validation
+- Flesh out command list
+- Apply 'AddEvent' message handling to all other commands where necessary
+
+*/
+
 var Discord = require('discord.js');
 var logger = require('winston');
 var auth = require('./auth.json');
@@ -114,7 +123,8 @@ client.on('message', message => {
 					var queueObj = {
 						userid: message.author.id,
 						type: cmd,
-						step: 1
+						step: 1,
+						messages: []
 					}
 					
 					messageQueue.push(queueObj);
@@ -124,35 +134,38 @@ client.on('message', message => {
 					collector.on('collect', message => {
 						switch (getStep(message.author.id, 'addevent')) {
 							case 1:
-								message.channel.send('<@'+ message.author.id + '> What time will your event start?');
+								queueAddMsg(message.author.id, 'addevent', message.content);
 								messageQueue = queueIncrement(messageQueue, message.author.id, 'addevent');
+								message.channel.send('<@'+ message.author.id + '> What time will your event start?');
 								break;
 								
 							case 2:
+								queueAddMsg(message.author.id, 'addevent', message.content);
 								message.channel.send('<@'+ message.author.id + '> What time will your event end?');
 								messageQueue = queueIncrement(messageQueue, message.author.id, 'addevent');
 								break;
 								
 							case 3:
+								queueAddMsg(message.author.id, 'addevent', message.content);
 								collector.stop();
 								break;
 						}
 					});
 					
 					collector.on('end', (collection, reason) => {
-						var messages = collection.array();
+						var messages = queueGetMsgs(message.author.id, 'addevent');
 						
 						var newEvent = {
-							name: messages[0].content,
-							starttime: messages[1].content,
-							endtime: messages[2].content
+							name: messages[0],
+							starttime: messages[1],
+							endtime: messages[2]
 						}
 						
 						client.addEvent.run(newEvent);
 						
 						messageQueue = queueRemove(messageQueue, message.author.id);
 						
-						message.channel.send('<@'+ message.author.id + '> Event added.');
+						message.channel.send('<@'+ message.author.id + '> Event \'' + newEvent.name + '\' added.');
 					});
 					
 					break;
@@ -261,4 +274,20 @@ function getStep(id, type) {
 	}
 	
 	return 0;
+}
+
+function queueAddMsg(id, type, message) {
+	for (var x = 0; x < messageQueue.length; x++) {
+		if (messageQueue[x].userid === id && messageQueue[x].type === type) {
+			messageQueue[x].messages.push(message);
+		}
+	}
+}
+
+function queueGetMsgs(id, type) {
+	for (var x = 0; x < messageQueue.length; x++) {
+		if (messageQueue[x].userid === id && messageQueue[x].type === type) {
+			return messageQueue[x].messages;
+		}
+	}
 }
