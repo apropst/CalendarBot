@@ -1,9 +1,12 @@
 /*
 To Do:
-- Add Event deleting
 - Add message validation
 - Flesh out command list
+   - Register for events (re-use existing !register command?)
+   - Add event deletion
+   - Add event editing, how to handle alerting users who already registered?
 - Apply 'AddEvent' message handling to all other commands where necessary
+- Add leading command character for all input(!)?
 
 */
 
@@ -23,7 +26,7 @@ client.on('ready', () => {
 	var table = sql.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table';").get();
 	
 	if (!table['COUNT(*)']) {
-		sql.prepare("CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, starttime INTEGER, endtime INTEGER);").run();
+		sql.prepare("CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, creatorid TEXT, start TEXT, end TEXT);").run();
 		sql.prepare("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, userid TEXT, timezone TEXT);").run();
 		sql.prepare("CREATE TABLE eventregistration (id INTEGER PRIMARY KEY AUTOINCREMENT, userid TEXT, event TEXT);").run();
 		sql.prepare("CREATE UNIQUE INDEX idx_events_id ON events (id);").run();
@@ -35,7 +38,7 @@ client.on('ready', () => {
 	
 	client.getEvent = sql.prepare("SELECT * FROM events WHERE name = ?");
 	client.getEvents = sql.prepare("SELECT * FROM events");
-	client.addEvent = sql.prepare("INSERT OR REPLACE INTO events (name, starttime, endtime) VALUES (@name, @starttime, @endtime);");
+	client.addEvent = sql.prepare("INSERT OR REPLACE INTO events (name, creatorid, start, end) VALUES (@name, @creatorid, @start, @end);");
 	client.getUser = sql.prepare("SELECT * FROM users WHERE userid = ?");
 	client.addUser = sql.prepare("INSERT OR REPLACE INTO users (username, userid, timezone) VALUES (@username, @userid, @timezone);");
 	client.getRegistration = sql.prepare("SELECT * FROM eventregistration WHERE userid = ?");
@@ -136,16 +139,22 @@ client.on('message', message => {
 							case 1:
 								queueAddMsg(message.author.id, 'addevent', message.content);
 								messageQueue = queueIncrement(messageQueue, message.author.id, 'addevent');
-								message.channel.send('<@'+ message.author.id + '> What time will your event start?');
+								message.channel.send('<@'+ message.author.id + '> On which date will the event occur (MM/DD/YYYY)?');
 								break;
 								
 							case 2:
 								queueAddMsg(message.author.id, 'addevent', message.content);
-								message.channel.send('<@'+ message.author.id + '> What time will your event end?');
 								messageQueue = queueIncrement(messageQueue, message.author.id, 'addevent');
+								message.channel.send('<@'+ message.author.id + '> What time will your event start (H:MM AM/PM)?');
 								break;
 								
 							case 3:
+								queueAddMsg(message.author.id, 'addevent', message.content);
+								message.channel.send('<@'+ message.author.id + '> What time will your event end (H:MM AM/PM)?');
+								messageQueue = queueIncrement(messageQueue, message.author.id, 'addevent');
+								break;
+								
+							case 4:
 								queueAddMsg(message.author.id, 'addevent', message.content);
 								collector.stop();
 								break;
@@ -157,8 +166,9 @@ client.on('message', message => {
 						
 						var newEvent = {
 							name: messages[0],
-							starttime: messages[1],
-							endtime: messages[2]
+							creatorid: message.author.id,
+							start: new Date(messages[1] + ' ' + messages[2]).toISOString(),
+							end: new Date(messages[1] + ' ' + messages[3]).toISOString()
 						}
 						
 						client.addEvent.run(newEvent);
@@ -168,6 +178,10 @@ client.on('message', message => {
 						message.channel.send('<@'+ message.author.id + '> Event \'' + newEvent.name + '\' added.');
 					});
 					
+					break;
+				
+				case 'deleteevent':
+				
 					break;
 				
 				case 'getevent':
@@ -197,7 +211,7 @@ client.on('message', message => {
 						messageQueue = queueRemove(messageQueue, message.author.id);
 						
 						if (typeof eventResult !== 'undefined') {
-							message.channel.send('Event ID: ' + eventResult.id + '\nEvent Name: ' + eventResult.name + '\nEvent Start Time: ' + eventResult.starttime + '\nEvent End Time: ' + eventResult.endtime);
+							message.channel.send('Event ID: ' + eventResult.id + '\nEvent Name: ' + eventResult.name + '\nEvent Creator: ' + eventList[x].creatorid + '\nEvent Start Time: ' + eventResult.start + '\nEvent End Time: ' + eventResult.end);
 						} else {
 							message.channel.send('No event found.');
 						}
@@ -209,7 +223,7 @@ client.on('message', message => {
 					var eventList = client.getEvents.all();
 					
 					for (var x = 0; x < eventList.length; x++) {
-						message.channel.send('Event ID: ' + eventList[x].id + '\nEvent Name: ' + eventList[x].name + '\nEvent Start Time: ' + eventList[x].starttime + '\nEvent End Time: ' + eventList[x].endtime);
+						message.channel.send('Event ID: ' + eventList[x].id + '\nEvent Name: ' + eventList[x].name + '\nEvent Creator: ' + eventList[x].creatorid + '\nEvent Start Time: ' + eventList[x].start + '\nEvent End Time: ' + eventList[x].end);
 					}
 					
 					break;
