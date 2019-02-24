@@ -1,0 +1,14 @@
+{
+	"name": "calendar-bot",
+	"version": "0.0.1",
+	"description": "Discord Calendar Bot",
+	"main": "bot.js",
+	"author": "Andrew Propst",
+	"dependencies": {
+		"better-sqlite3": "^5.0.1",
+		"discord.io": "https://github.com/woor/discord.io/tarball/gateway_v6",
+		"discord.js": "^11.4.2",
+		"googleapis": "^27.0.0",
+		"winston": "^3.1.0"
+	}
+}
