@@ -1,5 +1,5 @@
 *.log
-*.sqlite
+db.sqlite*
 node_modules/
 config.json
 auth.json
