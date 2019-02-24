@@ -1,5 +1,6 @@
 /*
 To Do:
+- Test event deletion
 - Add message validation
 - Flesh out command list
    - Register for events (re-use existing !register command?)
@@ -7,6 +8,8 @@ To Do:
    - Add event editing, how to handle alerting users who already registered?
 - Apply 'AddEvent' message handling to all other commands where necessary
 - Add leading command character for all input(!)?
+- Recurring events?
+- Rework queueRemove to filter by message type
 
 */
 
@@ -39,6 +42,7 @@ client.on('ready', () => {
 	client.getEvent = sql.prepare("SELECT * FROM events WHERE name = ?");
 	client.getEvents = sql.prepare("SELECT * FROM events");
 	client.addEvent = sql.prepare("INSERT OR REPLACE INTO events (name, creatorid, start, end) VALUES (@name, @creatorid, @start, @end);");
+	client.deleteEvent = sql.prepare("DELETE * FROM events WHERE name = ?; DELETE * FROM eventregistration WHERE event = ?");
 	client.getUser = sql.prepare("SELECT * FROM users WHERE userid = ?");
 	client.addUser = sql.prepare("INSERT OR REPLACE INTO users (username, userid, timezone) VALUES (@username, @userid, @timezone);");
 	client.getRegistration = sql.prepare("SELECT * FROM eventregistration WHERE userid = ?");
@@ -181,7 +185,50 @@ client.on('message', message => {
 					break;
 				
 				case 'deleteevent':
-				
+					var collector = new Discord.MessageCollector(message.channel, m => m.author.id === message.author.id);
+					
+					var queueObj = {
+						userid: message.author.id,
+						type: cmd,
+						step: 1
+					}
+					
+					messageQueue.push(queueObj);
+					
+					message.channel.send('<@'+ message.author.id + '> Enter the name of the event you want to delete.');
+					
+					collector.on('collect', message => {
+						switch (getStep(message.author.id, cmd)) {
+							case 1:
+								queueAddMsg(message.author.id, cmd, message.content);
+								messageQueue = queueIncrement(messageQueue, message.author.id, cmd);
+								message.channel.send('<@'+ message.author.id + '> Are you sure you want to delete this event? Type "DELETE" to confirm or "CANCEL" to cancel.');
+								break;
+							
+							case 2:
+								queueAddMsg(message.author.id, cmd, message.content);
+								collector.stop();
+								break;
+						}
+					});
+					
+					collector.on('end', (collection, reason) => {
+						var messages = queueGetMsgs(message.author.id, cmd);
+						
+						if (messages[1] == 'DELETE') {
+							var searchEvent = client.getEvent.get(messages[0]);
+							
+							if (typeof eventResult !== 'undefined') {
+								client.deleteEvent.get(messages[1]);
+							} else {
+								message.channel.send('No event by name "' + messages[0] + '" found. Please try again.');
+							}
+						} else {
+							message.channel.send('Message deletion cancelled.');
+						}
+						
+						messageQueue = queueRemove(messageQueue, message.author.id);
+					});
 					break;
 				
 				case 'getevent':
