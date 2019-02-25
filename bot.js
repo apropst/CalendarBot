@@ -36,17 +36,16 @@ client.on('ready', () => {
 		sql.prepare("CREATE UNIQUE INDEX idx_users_id ON users (id);").run();
 		sql.prepare("CREATE UNIQUE INDEX idx_eventregistration_id ON eventregistration (id);").run();
 		sql.pragma("synchronous = 1");
-		sql.pragma("journal_mode = wal");
+		sql.pragma("journal_mode = WAL");
 	}
 	
 	client.getEvent = sql.prepare("SELECT * FROM events WHERE name = ?");
 	client.getEvents = sql.prepare("SELECT * FROM events");
-	client.addEvent = sql.prepare("INSERT OR REPLACE INTO events (name, creatorid, start, end) VALUES (@name, @creatorid, @start, @end);");
-	client.deleteEvent = sql.prepare("DELETE * FROM events WHERE name = ?; DELETE * FROM eventregistration WHERE event = ?");
+	client.addEvent = sql.prepare("INSERT OR REPLACE INTO events (name, creatorid, start, end) VALUES (@name, @creatorid, @start, @end)");
 	client.getUser = sql.prepare("SELECT * FROM users WHERE userid = ?");
-	client.addUser = sql.prepare("INSERT OR REPLACE INTO users (username, userid, timezone) VALUES (@username, @userid, @timezone);");
+	client.addUser = sql.prepare("INSERT OR REPLACE INTO users (username, userid, timezone) VALUES (@username, @userid, @timezone)");
 	client.getRegistration = sql.prepare("SELECT * FROM eventregistration WHERE userid = ?");
-	client.addRegistration = sql.prepare("INSERT OR REPLACE INTO eventregistration (userid, event) VALUES (@userid, @event);");
+	client.addRegistration = sql.prepare("INSERT OR REPLACE INTO eventregistration (userid, event) VALUES (@userid, @event)");
 });
 
 client.on('message', message => {
@@ -190,7 +189,8 @@ client.on('message', message => {
 					var queueObj = {
 						userid: message.author.id,
 						type: cmd,
-						step: 1
+						step: 1,
+						messages: []
 					}
 					
 					messageQueue.push(queueObj);
@@ -215,16 +215,17 @@ client.on('message', message => {
 					collector.on('end', (collection, reason) => {
 						var messages = queueGetMsgs(message.author.id, cmd);
 						
-						if (messages[1] == 'DELETE') {
+						if (messages[1].toLowerCase() == 'delete') {
 							var searchEvent = client.getEvent.get(messages[0]);
 							
-							if (typeof eventResult !== 'undefined') {
-								client.deleteEvent.get(messages[1]);
+							if (typeof searchEvent !== 'undefined') {
+								deleteEvent(messages[0]);
+								message.channel.send('Event ' + messages[0] + ' deleted.');
 							} else {
 								message.channel.send('No event by name "' + messages[0] + '" found. Please try again.');
 							}
 						} else {
-							message.channel.send('Message deletion cancelled.');
+							message.channel.send('Event deletion cancelled.');
 						}
 						
 						messageQueue = queueRemove(messageQueue, message.author.id);
@@ -258,9 +259,9 @@ client.on('message', message => {
 						messageQueue = queueRemove(messageQueue, message.author.id);
 						
 						if (typeof eventResult !== 'undefined') {
-							message.channel.send('Event ID: ' + eventResult.id + '\nEvent Name: ' + eventResult.name + '\nEvent Creator: ' + eventList[x].creatorid + '\nEvent Start Time: ' + eventResult.start + '\nEvent End Time: ' + eventResult.end);
+							message.channel.send('Event ID: ' + eventResult.id + '\nEvent Name: ' + eventResult.name + '\nEvent Creator: ' + eventResult.creatorid + '\nEvent Start Time: ' + eventResult.start + '\nEvent End Time: ' + eventResult.end);
 						} else {
-							message.channel.send('No event found.');
+							message.channel.send('No event with name found.');
 						}
 					});
 					
@@ -268,6 +269,9 @@ client.on('message', message => {
 					
 				case 'getevents':
 					var eventList = client.getEvents.all();
+
+					if (eventList.length == 0)
+						message.channel.send('No events exist currently!');
 					
 					for (var x = 0; x < eventList.length; x++) {
 						message.channel.send('Event ID: ' + eventList[x].id + '\nEvent Name: ' + eventList[x].name + '\nEvent Creator: ' + eventList[x].creatorid + '\nEvent Start Time: ' + eventList[x].start + '\nEvent End Time: ' + eventList[x].end);
@@ -277,7 +281,7 @@ client.on('message', message => {
 				
 				case 'whoami':
 					var userData = client.getUser.get(message.author.id);
-					message.channel.send('User ID: ' + userData.id + ' Username: ' + userData.username + ' Discord User ID: ' + userData.userid + ' Timezone: ' + userData.timezone);
+					message.channel.send('User ID: ' + userData.id + '\nUsername: ' + userData.username + '\nDiscord User ID: ' + userData.userid + '\nTimezone: ' + userData.timezone);
 					break;
 				
 			}
@@ -351,4 +355,9 @@ function queueGetMsgs(id, type) {
 			return messageQueue[x].messages;
 		}
 	}
+}
+
+function deleteEvent(name) {
+	sql.exec('DELETE FROM events WHERE name = "' + name + '"');
+	sql.exec('DELETE FROM eventregistration WHERE event = "' + name + '"');
 }
