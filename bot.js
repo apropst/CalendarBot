@@ -294,11 +294,9 @@ client.on('message', message => {
 				}
 			} else {
 				switch(cmd) {
-					/*
 					case 'voicelines':
-						outputVoicelines(message);
+						message.channel.send('See here: https://github.com/apropst/CalendarBot/tree/master/media');
 						break;
-					*/
 
 					default:
 						playMusic(cmd, message);
@@ -417,31 +415,6 @@ function getFiles(dir, done) {
         });
     });
 };
-
-function outputVoicelines(message) {
-	getFiles('media', function(err, data) {
-		if (err) {
-			console.log('Error: ' + err);
-		}
-
-		let output = new String();
-
-		output += 'Available voicelines:';
-
-		data.forEach(function(file){
-			let fileName = file.substring(file.lastIndexOf("\\") + 1);
-			let truncName = file.slice(0,file.length - fileName.length - 1);
-			let heroName = truncName.substring(truncName.lastIndexOf("\\") + 1);
-
-			output += '\n' + heroName + ' - ' + fileName.slice(0, fileName.length - 4);
-		});
-
-		console.log(output);
-
-		message.channel.send(output);
-	});
-}
-
 
 const playMusic = async (cmd, message) => {
 	const vChannel = message.member.voice.channel;
