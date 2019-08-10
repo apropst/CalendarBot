@@ -14,6 +14,7 @@ To Do:
 const Discord = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const schedule = require('node-schedule');
 const logger = require('winston');
 const auth = require('./auth.json');
 const SQLite = require('better-sqlite3');
@@ -434,6 +435,7 @@ const playMusic = async (cmd, message) => {
 				if (vChannel) {
 					await vChannel.join().then(connection => {
 						dispatcher = connection.play('media/' + heroName + '/' + cmd + '.mp3');
+						//client.voiceConnections.map(voiceConnection => console.log(voiceConnection));
 						dispatcher.on("end", end => {
 							vChannel.leave();
 						});
