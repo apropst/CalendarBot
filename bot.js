@@ -435,7 +435,6 @@ const playMusic = async (cmd, message) => {
 				if (vChannel) {
 					await vChannel.join().then(connection => {
 						dispatcher = connection.play('media/' + heroName + '/' + cmd + '.mp3');
-						//client.voiceConnections.map(voiceConnection => console.log(voiceConnection));
 						dispatcher.on("end", end => {
 							vChannel.leave();
 						});
