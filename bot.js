@@ -311,6 +311,20 @@ client.on('message', message => {
 	}*/
 });
 
+client.on('voiceStateUpdate', (oldMember, newMember) => {
+	let oldChannelID = oldMember.channelID;
+	let newChannelID = newMember.channelID;
+
+	if (oldMember.id !== client.user.id) {
+		if (newChannelID === null || newChannelID === undefined) {
+			if (vChannelCheck(oldChannelID)) {
+				if (oldMember.channel.members.size <= 1)
+					oldMember.channel.leave();
+			}
+		}
+	}
+});
+
 client.login(auth.token);
 
 function IsProd() {
@@ -417,6 +431,19 @@ function getFiles(dir, done) {
     });
 };
 
+function vChannelCheck(channelId) {
+	for (let channel of client.channels) {
+		if (channel[0] == channelId) {
+			for (let entry of channel[1].members.entries()) {
+				if (entry[0] == client.user.id)
+					return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 const playMusic = async (cmd, message) => {
 	const vChannel = message.member.voice.channel;
 
@@ -435,11 +462,8 @@ const playMusic = async (cmd, message) => {
 				if (vChannel) {
 					await vChannel.join().then(connection => {
 						dispatcher = connection.play('media/' + heroName + '/' + cmd + '.mp3');
-						dispatcher.on("end", end => {
-							vChannel.leave();
-						});
 					}).catch(error => {
-						message.channel.send("Error playing file: " + error);
+						console.log('Play Error: ' + err);
 					});
 				} else {
 					message.channel.send(new Discord.MessageAttachment('media/' + heroName + '/' + cmd + '.mp3', cmd + '.mp3'));
@@ -447,4 +471,4 @@ const playMusic = async (cmd, message) => {
 			}
 		}
 	});
-}
+};
