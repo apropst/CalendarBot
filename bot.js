@@ -25,7 +25,10 @@ const client = new Discord.Client();
 var messageQueue = [];
 
 client.on('ready', () => {
-	console.log('Logged in as ' + client.user.username + '!');
+	const today = new Date();
+	const dateTime = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate() + ' ' + today.getHours() + ':' + today.getMinutes() + ':' + today.getSeconds();
+	
+	console.log('[' + dateTime + '] Logged in as ' + client.user.username + '!');
 	
 	const table = sql.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table';").get();
 	
