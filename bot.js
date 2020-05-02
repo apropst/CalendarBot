@@ -16,6 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const schedule = require('node-schedule');
 const logger = require('winston');
+const moment = require('moment');
 const auth = require('./auth.json');
 const SQLite = require('better-sqlite3');
 const sql = new SQLite('./db.sqlite');
@@ -25,10 +26,9 @@ const client = new Discord.Client();
 var messageQueue = [];
 
 client.on('ready', () => {
-	const today = new Date();
-	const dateTime = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate() + ' ' + today.getHours() + ':' + today.getMinutes() + ':' + today.getSeconds();
+	const now = moment().format('YYYY/MM/DD hh:mm:ss A')
 	
-	console.log('[' + dateTime + '] Logged in as ' + client.user.username + '!');
+	console.log('[' + now + '] Logged in as ' + client.user.username + '!');
 	
 	const table = sql.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table';").get();
 	
