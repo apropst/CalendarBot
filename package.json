@@ -6,8 +6,7 @@
 	"author": "Andrew Propst",
 	"dependencies": {
 		"better-sqlite3": "^5.4.0",
-		"discord.io": "https://github.com/woor/discord.io/tarball/gateway_v6",
-		"discord.js": "github:discordjs/discord.js",
+		"discord.js": "github:discordjs/discord.js#f79f0243438a89c4d8a910461800b1adff2fe6e5",
 		"googleapis": "^27.0.0",
 		"moment": "^2.25.1",
 		"node-opus": "^0.3.2",

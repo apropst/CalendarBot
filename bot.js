@@ -447,6 +447,15 @@ function vChannelCheck(channelId) {
 	return false;
 }
 
+function botVoiceStatus(channelId) {
+	for (let connection of client.voice.connections) {
+		if (channelId == connection[1].channel.id)
+			return true;
+	}
+
+	return false;
+}
+
 const playMusic = async (cmd, message) => {
 	const vChannel = message.member.voice.channel;
 
@@ -463,9 +472,12 @@ const playMusic = async (cmd, message) => {
 	
 			if (cmd == commandName) {
 				if (vChannel) {
+					if (botVoiceStatus(message.member.voice.channelID) && !vChannelCheck(message.member.voice.channelID))
+						vChannel.leave();
+
 					await vChannel.join().then(connection => {
 						dispatcher = connection.play('media/' + heroName + '/' + cmd + '.mp3');
-					}).catch(error => {
+					}).catch(err => {
 						console.log('Play Error: ' + err);
 					});
 				} else {
