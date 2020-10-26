@@ -465,10 +465,9 @@ const playMusic = async (cmd, message) => {
 		}
 		
 		for (let file of data) {
-			console.log(file);
 			let fileName = file.substring(file.lastIndexOf("/") + 1);
-			let truncName = file.slice(0,file.length - fileName.length - 1);
-			let heroName = truncName.substring(truncName.lastIndexOf("/") + 1);
+			//let truncName = file.slice(0,file.length - fileName.length - 1);
+			//let heroName = truncName.substring(truncName.lastIndexOf("/") + 1);
 			let commandName = fileName.slice(0, fileName.length - 4);
 			
 			if (cmd == commandName) {
@@ -477,12 +476,12 @@ const playMusic = async (cmd, message) => {
 						vChannel.leave();
 
 					await vChannel.join().then(connection => {
-						dispatcher = connection.play('media/' + heroName + '/' + cmd + '.mp3');
+						dispatcher = connection.play(file);
 					}).catch(err => {
 						console.log('Play Error: ' + err);
 					});
 				} else {
-					message.channel.send(new Discord.MessageAttachment('media/' + heroName + '/' + cmd + '.mp3', cmd + '.mp3'));
+					message.channel.send(new Discord.MessageAttachment(file, cmd + '.mp3'));
 				}
 			}
 		}
