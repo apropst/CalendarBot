@@ -458,18 +458,19 @@ function botVoiceStatus(channelId) {
 
 const playMusic = async (cmd, message) => {
 	const vChannel = message.member.voice.channel;
-
+	
 	getFiles('media', async (err, data) => {
 		if (err) {
 			console.log('Error: ' + err);
 		}
 		
 		for (let file of data) {
-			let fileName = file.substring(file.lastIndexOf("\\") + 1);
+			console.log(file);
+			let fileName = file.substring(file.lastIndexOf("/") + 1);
 			let truncName = file.slice(0,file.length - fileName.length - 1);
-			let heroName = truncName.substring(truncName.lastIndexOf("\\") + 1);
+			let heroName = truncName.substring(truncName.lastIndexOf("/") + 1);
 			let commandName = fileName.slice(0, fileName.length - 4);
-	
+			
 			if (cmd == commandName) {
 				if (vChannel) {
 					if (botVoiceStatus(message.member.voice.channelID) && !vChannelCheck(message.member.voice.channelID))
